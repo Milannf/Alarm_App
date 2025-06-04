@@ -1,67 +1,70 @@
 // lib/pages/home.dart
 import 'package:flutter/material.dart';
-import 'menu.dart'; // Jangan lupa import ini
+import 'dashboard.dart'; // Nanti kita akan membuat file dashboard.dart
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatelessWidget { // Ganti nama class jadi WelcomeScreen jika Anda mau, tapi kita biarkan HomePage dulu
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // Latar belakang putih bersih
+      backgroundColor: Colors.white,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Logo atau Ilustrasi (Opsional)
-            // Anda bisa menambahkan gambar di sini, contoh:
-            // Image.asset('assets/icons/alarm_icon.png', height: 100, width: 100),
-            // const SizedBox(height: 30),
+            Image.asset(
+              'assets/images/wake_up_man.png', // Ganti dengan nama file gambar Anda
+              height: 350, // Sesuaikan tinggi gambar sesuai keinginan
+              width: 500,  // Sesuaikan lebar gambar
+              fit: BoxFit.contain, // Pastikan gambar pas
+            ),
+            const SizedBox(height: 0), // Beri sedikit spasi antara gambar dan teks
 
-            // Nama Aplikasi yang Lebih Menarik
             const Text(
               'BangunYuk',
               style: TextStyle(
-                fontSize: 48, // Ukuran lebih besar
-                fontWeight: FontWeight.w800, // Lebih tebal
+                fontSize: 45, // Lebih besar lagi
+                fontWeight: FontWeight.w800,
                 color: Colors.black87,
-                letterSpacing: 2.0, // Sedikit spasi huruf
+                letterSpacing: 2.5,
               ),
             ),
             const Text(
-              'Alarm Cerdas Anda',
+              'Motivasi Setiap Pagi Anda', // Tagline yang lebih motivational
               style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w400,
+                fontSize: 20,
+                fontWeight: FontWeight.w500,
                 color: Colors.black54,
                 fontStyle: FontStyle.italic,
               ),
             ),
-            const SizedBox(height: 60), // Spasi lebih besar
+            const SizedBox(height: 80),
 
-            // Tombol Utama "Mulai" yang Lebih Menarik
             ElevatedButton(
               onPressed: () {
-                Navigator.push(
+                // Setelah ditekan, navigasi ke Dashboard Utama
+                Navigator.pushReplacement( // Gunakan pushReplacement agar tidak bisa kembali ke halaman ini
                   context,
-                  MaterialPageRoute(builder: (_) => const MenuPage()),
+                  MaterialPageRoute(builder: (_) => const MainDashboardPage()),
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black87, // Warna utama
-                foregroundColor: Colors.white, // Warna teks
-                padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 18), // Padding lebih besar
+                backgroundColor: Colors.black87,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 20),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15), // Sudut lebih membulat
+                  borderRadius: BorderRadius.circular(18), // Lebih membulat
                 ),
-                elevation: 8, // Shadow lebih menonjol
-                shadowColor: Colors.black38, // Warna shadow
+                elevation: 10, // Shadow lebih menonjol
+                shadowColor: Colors.black45,
               ),
               child: const Text(
-                'Mulai Aplikasi', // Teks lebih menarik
+                'Mulai Sekarang', // Teks yang lebih memotivasi
                 style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
                 ),
               ),
             ),

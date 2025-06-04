@@ -20,6 +20,7 @@ dependencies:
   # 👇 Tambahkan dua package ini
   flutter_tts: ^4.0.0 # Untuk Text-to-Speech
   audioplayers: ^6.0.0 # Untuk memutar audio pre-recorded
+  intl: ^0.19.0 
 
 
 dev_dependencies:
@@ -32,6 +33,7 @@ flutter:
   assets:
     - assets/icons/
     - assets/sounds/ # 👇 Tambahkan folder ini untuk audio karakter Anda
+    - assets/images/
   fonts:
     - family: Poppins
       fonts:

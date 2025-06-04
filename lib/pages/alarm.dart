@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/alarm.dart';
-import '../main.dart';
-import 'package:timezone/timezone.dart' as tz;
+import '../main.dart'; // Untuk flutterLocalNotificationsPlugin
+import 'package:timezone/timezone.dart' as tz; // Untuk TZDateTime
 import 'message.dart'; // Pastikan ini diimpor
 
 import 'package:flutter_tts/flutter_tts.dart';
@@ -22,17 +22,38 @@ class AlarmPage extends StatefulWidget {
 class _AlarmPageState extends State<AlarmPage> {
   List<Alarm> alarms = [];
   SharedPreferences? _prefs;
-
+  
+  late FlutterTts flutterTts;
+  late AudioPlayer audioPlayer;
 
   @override
   void initState() {
     super.initState();
     _initSharedPreferences();
+    _initTtsAndAudioPlayer();
+    // Tidak ada listener notifikasi di sini lagi.
   }
 
+  void _initTtsAndAudioPlayer() {
+    flutterTts = FlutterTts();
+    audioPlayer = AudioPlayer();
+
+    flutterTts.setLanguage("en-US"); // Anda bisa ubah ke "id-ID" jika TTS mendukung
+    flutterTts.setStartHandler(() {
+      print("TTS started");
+    });
+    flutterTts.setCompletionHandler(() {
+      print("TTS completed");
+    });
+    flutterTts.setErrorHandler((message) {
+      print("TTS error: $message");
+    });
+  }
 
   @override
   void dispose() {
+    flutterTts.stop();
+    audioPlayer.dispose();
     super.dispose();
   }
 
@@ -56,8 +77,11 @@ class _AlarmPageState extends State<AlarmPage> {
         alarms.map((alarm) => alarm.toJson()).toList();
     _prefs!.setString('alarms', jsonEncode(jsonList));
   }
+  
+  // Fungsi _playAlarmSoundAndMessage lokal telah dihapus karena ada versi global di main.dart
 
-  Future<void>  _scheduleAlarmNotification(Alarm alarm) async {
+
+  Future<void> _scheduleAlarmNotification(Alarm alarm) async {
     print('Attempting to schedule alarm for: ${alarm.time.format(context)} with label: ${alarm.label}');
     final DateTime now = DateTime.now();
     DateTime scheduledDate =
@@ -89,6 +113,7 @@ class _AlarmPageState extends State<AlarmPage> {
       android: androidPlatformChannelSpecifics,
       iOS: darwinPlatformChannelSpecifics,
     );
+
     try {
       await flutterLocalNotificationsPlugin.zonedSchedule(
         alarm.id.hashCode,
@@ -96,15 +121,15 @@ class _AlarmPageState extends State<AlarmPage> {
         alarm.label,
         scheduledTZDateTime,
         platformChannelSpecifics,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,  // Mode ini tidak memerlukan izin exact alarm
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle, // Kembali ke mode tepat waktu
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         payload: alarm.id,
-    );
-    print('Alarm scheduled with ID: ${alarm.id.hashCode}');
-  } catch (e) {
-    print('Failed to schedule alarm: $e'); // Ini akan terpanggil jika ada error
+      );
+      print('Alarm scheduled with ID: ${alarm.id.hashCode}');
+    } catch (e) {
+      print('Failed to schedule alarm: $e');
+    }
   }
-}
 
   Future<void> _cancelAlarmNotification(String alarmId) async {
     await flutterLocalNotificationsPlugin.cancel(alarmId.hashCode);
@@ -143,9 +168,7 @@ class _AlarmPageState extends State<AlarmPage> {
                     value: 'default_tts',
                     groupValue: selectedCharacterType,
                     onChanged: (String? value) {
-                      setState(() {
-                        selectedCharacterType = value;
-                      });
+                      setState(() { selectedCharacterType = value; });
                       Navigator.pop(context, value);
                     },
                   ),
@@ -156,9 +179,7 @@ class _AlarmPageState extends State<AlarmPage> {
                     value: 'david_goggins',
                     groupValue: selectedCharacterType,
                     onChanged: (String? value) {
-                      setState(() {
-                        selectedCharacterType = value;
-                      });
+                      setState(() { selectedCharacterType = value; });
                       Navigator.pop(context, value);
                     },
                   ),
@@ -191,24 +212,24 @@ class _AlarmPageState extends State<AlarmPage> {
     }
   }
 
-  void _toggleAlarm(Alarm alarm, bool newValue) {
+  void _toggleAlarm(Alarm alarm, bool newValue) async {
     setState(() {
       alarm.isActive = newValue;
     });
     _saveAlarms();
     if (newValue) {
-      _scheduleAlarmNotification(alarm);
+      await _scheduleAlarmNotification(alarm);
     } else {
-      _cancelAlarmNotification(alarm.id);
+      await _cancelAlarmNotification(alarm.id);
     }
   }
 
-  void _deleteAlarm(String alarmId) {
+  void _deleteAlarm(String alarmId) async {
     setState(() {
       alarms.removeWhere((alarm) => alarm.id == alarmId);
     });
     _saveAlarms();
-    _cancelAlarmNotification(alarmId);
+    await _cancelAlarmNotification(alarmId);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Alarm deleted!')),
     );
@@ -240,233 +261,179 @@ class _AlarmPageState extends State<AlarmPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar( // 👇 Tambahkan AppBar untuk judul halaman
+        title: const Text('Alarm Anda'),
+        backgroundColor: Colors.black87,
+        foregroundColor: Colors.white,
+        centerTitle: true,
+        elevation: 0,
+      ),
       body: SafeArea(
-        child: Stack(
+        child: Column( // Mengubah Stack menjadi Column untuk layout yang lebih lurus
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Positioned(
-              top: 16,
-              left: 16,
-              child: GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.black87,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.arrow_back_ios_new,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-              ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.only(
-                  top: 80, left: 16, right: 16, bottom: 80),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Current Alarms',
-                    style: TextStyle(
-                      fontSize: 24,
+            Padding( // Judul "Current Alarms"
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 20), // Padding disesuaikan
+              child: Text(
+                'Current Alarms',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith( // Menggunakan tema teks
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
                     ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  if (alarms.isEmpty)
-                    const Expanded(
-                      child: Center(
-                        child: Text(
-                          'No alarms set yet.\nTap "Add" to create one.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 16, color: Colors.black54),
-                        ),
+              ),
+            ),
+            
+            Expanded( // Konten utama (daftar alarm atau pesan kosong)
+              child: alarms.isEmpty
+                  ? Center( // Desain untuk kondisi kosong yang lebih menarik
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.alarm_add,
+                            size: 80,
+                            color: Colors.grey[300],
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            'Siap memulai hari Anda?',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  color: Colors.black54,
+                                ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Tambahkan alarm pertama Anda!',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                  color: Colors.black45,
+                                ),
+                          ),
+                        ],
                       ),
                     )
-                  else
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: alarms.length,
-                        itemBuilder: (context, index) {
-                          final alarm = alarms[index];
-                          return Card(
-                            margin: const EdgeInsets.symmetric(vertical: 8.0),
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        alarm.time.format(context),
-                                        style: TextStyle(
-                                          fontSize: 32,
-                                          fontWeight: FontWeight.bold,
-                                          color: alarm.isActive
-                                              ? Colors.black87
-                                              : Colors.grey,
-                                        ),
-                                      ),
-                                      Switch(
-                                        value: alarm.isActive,
-                                        onChanged: (newValue) {
-                                          _toggleAlarm(alarm, newValue);
-                                        },
-                                        activeColor: Colors.black87,
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      Text(
+                  : ListView.builder( // Daftar Alarm
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: alarms.length,
+                      itemBuilder: (context, index) {
+                        final alarm = alarms[index];
+                        return Card(
+                          margin: const EdgeInsets.symmetric(vertical: 8.0),
+                          elevation: 4, // Shadow lebih dalam
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15), // Sudut lebih membulat
+                          ),
+                          color: alarm.isActive ? Colors.white : Colors.grey[200], // Warna kartu aktif/non-aktif
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      alarm.time.format(context),
+                                      style: Theme.of(context).textTheme.displaySmall?.copyWith( // Ukuran waktu lebih besar
+                                            fontWeight: FontWeight.bold,
+                                            color: alarm.isActive ? Colors.black87 : Colors.grey[500],
+                                          ),
+                                    ),
+                                    Switch(
+                                      value: alarm.isActive,
+                                      onChanged: (newValue) {
+                                        _toggleAlarm(alarm, newValue);
+                                      },
+                                      activeColor: Colors.green, // Warna switch aktif
+                                      inactiveThumbColor: Colors.grey,
+                                      inactiveTrackColor: Colors.grey[300],
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded( // Agar label tidak tumpang tindih
+                                      child: Text(
                                         alarm.label,
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          color: alarm.isActive
-                                              ? Colors.black54
-                                              : Colors.grey[400],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        '(${alarm.characterType == 'david_goggins' ? 'David Goggins' : 'Default TTS'})',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontStyle: FontStyle.italic,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      ElevatedButton(
-                                        onPressed: () => _editMessage(alarm),
-                                        style: _buttonStyle(),
-                                        child: const Text('Edit Message'),
-                                      ),
-                                      ElevatedButton(
-                                        onPressed: () {
-                                          showDialog(
-                                            context: context,
-                                            builder: (context) => AlertDialog(
-                                              title: const Text('Delete Alarm?'),
-                                              content: const Text(
-                                                  'Are you sure you want to delete this alarm?'),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () =>
-                                                      Navigator.pop(context),
-                                                  child: const Text('Cancel'),
-                                                ),
-                                                TextButton(
-                                                  onPressed: () {
-                                                    _deleteAlarm(alarm.id);
-                                                    Navigator.pop(context);
-                                                  },
-                                                  child: const Text('Delete'),
-                                                ),
-                                              ],
+                                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                              color: alarm.isActive ? Colors.black54 : Colors.grey[400],
                                             ),
-                                          );
-                                        },
-                                        style: _deleteButtonStyle(),
-                                        child: const Text('Delete'),
+                                        overflow: TextOverflow.ellipsis, // Jika terlalu panjang
                                       ),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '(${alarm.characterType == 'david_goggins' ? 'David Goggins' : 'Default TTS'})',
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                            fontStyle: FontStyle.italic,
+                                            color: Colors.grey[600],
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end, // Tombol ke kanan
+                                  children: [
+                                    TextButton.icon( // Tombol edit sebagai TextButton
+                                      onPressed: () => _editMessage(alarm),
+                                      icon: Icon(Icons.edit, color: Colors.blue[700]),
+                                      label: Text('Edit', style: TextStyle(color: Colors.blue[700])),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    TextButton.icon( // Tombol delete sebagai TextButton
+                                      onPressed: () {
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) => AlertDialog(
+                                            title: const Text('Delete Alarm?'),
+                                            content: const Text(
+                                                'Are you sure you want to delete this alarm?'),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(context),
+                                                child: const Text('Cancel'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () {
+                                                  _deleteAlarm(alarm.id);
+                                                  Navigator.pop(context);
+                                                },
+                                                child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                      icon: Icon(Icons.delete, color: Colors.red),
+                                      label: Text('Delete', style: TextStyle(color: Colors.red)),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
-                          );
-                        },
-                      ),
-                    ),
-                ],
-              ),
-            ),
-
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  border: Border(top: BorderSide(color: Colors.black12)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _footerButton(
-                      label: 'Add',
-                      onPressed: _addAlarm,
-                    ),
-                    _footerButton(
-                      label: 'Test Notif Now',
-                      onPressed: () async {
-                        const AndroidNotificationDetails androidPlatformChannelSpecifics =
-                            AndroidNotificationDetails(
-                          'alarm_app_id', // ID yang sama dengan channel utama
-                          'Alarm App Channel',
-                          channelDescription: 'Channel for alarm notifications',
-                          importance: Importance.max,
-                          priority: Priority.high,
-                          ticker: 'ticker',
-                          // sound: RawResourceAndroidNotificationSound('alarm_sound'), // Opsional
+                          ),
                         );
-                        const DarwinNotificationDetails darwinPlatformChannelSpecifics =
-                            DarwinNotificationDetails();
-                        const NotificationDetails platformChannelSpecifics = NotificationDetails(
-                          android: androidPlatformChannelSpecifics,
-                          iOS: darwinPlatformChannelSpecifics,
-                        );
-
-                        await flutterLocalNotificationsPlugin.show(
-                          0, // ID notifikasi unik
-                          'Notifikasi Tes Alarm',
-                          'Ini adalah notifikasi tes instan!',
-                          platformChannelSpecifics,
-                          payload: 'test_payload',
-                        );
-                        print('Instant notification sent.');
                       },
                     ),
-                  ],
-                ),
-              ),
             ),
+            // Floating Action Button untuk menambah alarm
+            // Ini menggantikan tombol 'Add' di bagian bawah
           ],
         ),
       ),
+      floatingActionButton: FloatingActionButton( // 👇 FAB Baru
+        onPressed: _addAlarm,
+        backgroundColor: Colors.black87,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat, // Posisikan di kanan bawah
     );
   }
 
-  // Styles
+  // Styles (ini tidak lagi digunakan secara langsung di build, tapi tetap bisa disimpan)
   ButtonStyle _buttonStyle() {
     return ElevatedButton.styleFrom(
       backgroundColor: Colors.black87,

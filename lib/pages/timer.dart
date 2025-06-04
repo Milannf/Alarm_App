@@ -1,6 +1,8 @@
+// lib/pages/timer.dart
 import 'dart:async';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/cupertino.dart'; // Untuk CupertinoPicker
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class TimerPage extends StatefulWidget {
   const TimerPage({super.key});
@@ -19,6 +21,12 @@ class _TimerPageState extends State<TimerPage> {
   int selectedMinutes = 0;
   int selectedSeconds = 0;
 
+  @override
+  void dispose() {
+    countdownTimer?.cancel(); // Pastikan timer dibatalkan saat widget dibuang
+    super.dispose();
+  }
+
   void startTimer() {
     if (isRunning) return;
 
@@ -33,15 +41,16 @@ class _TimerPageState extends State<TimerPage> {
       isRunning = true;
     });
 
-    if (remaining.inSeconds == 0) return;
+    if (remaining.inSeconds == 0) return; // Jangan mulai jika durasi 0
 
     countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (remaining.inSeconds <= 1) {
+      if (remaining.inSeconds <= 1) { // Periksa <=1 agar detik terakhir terlihat
         timer.cancel();
         setState(() {
           isRunning = false;
           remaining = Duration.zero;
         });
+        _showTimerCompletionDialog(); // Tampilkan dialog saat timer selesai
       } else {
         setState(() {
           remaining -= const Duration(seconds: 1);
@@ -62,6 +71,9 @@ class _TimerPageState extends State<TimerPage> {
     setState(() {
       isRunning = false;
       remaining = Duration.zero;
+      selectedHours = 0; // Reset picker values
+      selectedMinutes = 0;
+      selectedSeconds = 0;
     });
   }
 
@@ -72,20 +84,64 @@ class _TimerPageState extends State<TimerPage> {
         "${twoDigits(duration.inSeconds.remainder(60))}";
   }
 
+  // Dialog yang muncul saat timer selesai
+void _showTimerCompletionDialog() {
+  // Buat instance AudioPlayer lokal jika tidak dideklarasikan di kelas
+  // Atau gunakan instance yang sudah ada di kelas (_TimerPageState)
+  final localAudioPlayer = AudioPlayer(); // Buat instance baru untuk playback ini
+
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Timer Selesai!'),
+      content: const Text('Waktu Anda telah habis. Ayo lakukan hal berikutnya!'),
+      actions: [
+        TextButton(
+          onPressed: () {
+            localAudioPlayer.stop(); // Hentikan suara jika pengguna mengetuk OK
+            Navigator.pop(context);
+          },
+          child: const Text('OK', style: TextStyle(color: Colors.black87)),
+        ),
+      ],
+    ),
+  ).then((_) {
+    // Setelah dialog ditutup (baik dengan tombol OK atau ketukan luar),
+    // pastikan audioPlayer di-dispose agar tidak ada kebocoran memori.
+    localAudioPlayer.dispose();
+  });
+
+  // 🎵 TAMBAHKAN KODE PEMUTAR SUARA INI
+  localAudioPlayer.play(AssetSource('sounds/timer_sound.mp3')); // 👇 Sesuaikan nama file Anda
+
+}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Timer')),
+      backgroundColor: Colors.white,
+      appBar: AppBar( // 👇 AppBar yang konsisten
+        title: const Text('Timer'),
+        backgroundColor: Colors.black87,
+        foregroundColor: Colors.white,
+        centerTitle: true,
+        elevation: 0,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            const Spacer(),
+            const Spacer(flex: 2), // Spasi lebih banyak di atas
             Text(
               formatTime(remaining),
-              style: const TextStyle(fontSize: 60, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 70, // Lebih besar
+                fontWeight: FontWeight.w900, // Sangat tebal
+                color: Colors.black87,
+              ),
             ),
             const SizedBox(height: 20),
+            // Tampilkan picker jika timer tidak berjalan dan waktu 0
             if (!isRunning && remaining == Duration.zero)
               Column(
                 children: [
@@ -94,17 +150,17 @@ class _TimerPageState extends State<TimerPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        buildPicker('Hours', 0, 23, (val) {
+                        buildPicker('Jam', 0, 23, (val) {
                           setState(() {
                             selectedHours = val;
                           });
                         }),
-                        buildPicker('Minutes', 0, 59, (val) {
+                        buildPicker('Menit', 0, 59, (val) {
                           setState(() {
                             selectedMinutes = val;
                           });
                         }),
-                        buildPicker('Seconds', 0, 59, (val) {
+                        buildPicker('Detik', 0, 59, (val) {
                           setState(() {
                             selectedSeconds = val;
                           });
@@ -112,44 +168,95 @@ class _TimerPageState extends State<TimerPage> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 30), // Spasi lebih besar
                 ],
               ),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                ElevatedButton(
+                _buildActionButton( // 👇 Gunakan widget tombol kustom
+                  label: isRunning ? 'Jeda' : 'Mulai',
                   onPressed: isRunning ? pauseTimer : startTimer,
-                  child: Text(isRunning ? 'Pause' : 'Start'),
+                  isPrimary: true,
                 ),
-                const SizedBox(width: 10),
-                ElevatedButton(
+                const SizedBox(width: 15),
+                _buildActionButton( // 👇 Gunakan widget tombol kustom
+                  label: 'Reset',
                   onPressed: resetTimer,
-                  child: const Text('Reset'),
+                  isPrimary: false,
                 ),
               ],
             ),
-            const Spacer(),
+            const Spacer(flex: 3), // Spasi lebih banyak di bawah
           ],
         ),
       ),
     );
   }
 
+  // 👇 Widget pembantu untuk tombol aksi (Mulai/Jeda/Reset)
+  Widget _buildActionButton({
+    required String label,
+    required VoidCallback onPressed,
+    required bool isPrimary,
+  }) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: isPrimary ? Colors.black87 : Colors.grey[300], // Warna berbeda
+        foregroundColor: isPrimary ? Colors.white : Colors.black87,
+        padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 15),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        elevation: 5,
+        shadowColor: Colors.black26,
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: isPrimary ? FontWeight.w700 : FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+
+  // 👇 Widget buildPicker dengan styling yang disempurnakan
   Widget buildPicker(String label, int min, int max, ValueChanged<int> onChanged) {
     return Column(
       children: [
-        Text(label),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
         SizedBox(
           width: 80,
-          height: 100,
+          height: 100, // Tinggi picker
           child: CupertinoPicker(
             scrollController: FixedExtentScrollController(initialItem: 0),
-            itemExtent: 32,
+            itemExtent: 32, // Tinggi setiap item
             onSelectedItemChanged: onChanged,
+            selectionOverlay: CupertinoPickerDefaultSelectionOverlay( // Overlay pilihan
+              background: Colors.black87.withOpacity(0.1),
+            ),
             children: List.generate(
               max - min + 1,
-              (index) => Center(child: Text('${min + index}')),
+              (index) => Center(
+                child: Text(
+                  '${min + index}',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
             ),
           ),
         ),
