@@ -1,18 +1,20 @@
+// android/app/build.gradle.kts
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
-    namespace = "com.example.alarmapp"
+    namespace = "com.example.alarmapp" // Ganti ini dengan namespace aplikasi Anda yang benar
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973"  // Hardcoded NDK version as requested
+    ndkVersion = "27.0.12077973" // Versi NDK yang Anda miliki
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true // Ini penting untuk desugaring
     }
 
     kotlinOptions {
@@ -20,7 +22,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.alarmapp"
+        applicationId = "com.example.alarmapp" // Pastikan ini sesuai dengan ID aplikasi Anda
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -29,7 +31,6 @@ android {
 
     buildTypes {
         release {
-            // Signing config for release build (using debug for now)
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -37,4 +38,10 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Pastikan ini ada
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    // Tambahkan dependensi lain yang mungkin sudah ada di proyek Anda di sini jika ada
 }

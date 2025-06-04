@@ -1,3 +1,16 @@
+// android/build.gradle.kts
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath("com.android.tools.build:gradle:7.3.0") // Pastikan versi AGP Anda (7.3.0) atau sesuai yang direkomendasikan Flutter Anda
+    }
+}
+
 allprojects {
     repositories {
         google()

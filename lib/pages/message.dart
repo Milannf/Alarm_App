@@ -1,7 +1,10 @@
+// lib/pages/message.dart
 import 'package:flutter/material.dart';
 
 class MessagePage extends StatefulWidget {
-  const MessagePage({super.key});
+  final String? initialMessage; // <--- PASTIKAN BARIS INI ADA
+
+  const MessagePage({super.key, this.initialMessage}); // <--- PASTIKAN CONSTRUCTOR SEPERTI INI
 
   @override
   State<MessagePage> createState() => _MessagePageState();
@@ -9,6 +12,12 @@ class MessagePage extends StatefulWidget {
 
 class _MessagePageState extends State<MessagePage> {
   final TextEditingController _controller = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.text = widget.initialMessage ?? ''; // <--- PASTIKAN BARIS INI ADA
+  }
 
   @override
   void dispose() {
@@ -19,17 +28,7 @@ class _MessagePageState extends State<MessagePage> {
   void _saveMessage() {
     final message = _controller.text.trim();
     if (message.isNotEmpty) {
-      // For now, just print or show a snackbar - 
-      // you can expand this to save to your alarm list or elsewhere
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Message saved: $message')),
-      );
-
-      // Optionally clear the text field after saving
-      _controller.clear();
-
-      // Navigate back to the previous screen after saving
-      Navigator.pop(context);
+      Navigator.pop(context, message);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a message')),
@@ -44,12 +43,13 @@ class _MessagePageState extends State<MessagePage> {
         title: const Text('Edit Message'),
         backgroundColor: Colors.black87,
         centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Text input box
             TextField(
               controller: _controller,
               maxLines: 5,
@@ -58,10 +58,10 @@ class _MessagePageState extends State<MessagePage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 hintText: 'Enter your message here...',
+                labelText: 'Alarm Message',
               ),
             ),
             const Spacer(),
-            // Save button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -72,6 +72,7 @@ class _MessagePageState extends State<MessagePage> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  foregroundColor: Colors.white,
                 ),
                 child: const Text(
                   'Save Message',
